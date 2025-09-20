@@ -1,0 +1,61 @@
+---
+
+### 🔐 2. `smart-contracts/AgroTrace.sol`
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract AgroTrace {
+    struct Crop {
+        string cropType;
+        uint256 quantity;
+        string location;
+        address farmer;
+        address buyer;
+        bool delivered;
+        uint256 price;
+    }
+
+    uint256 public cropCount;
+    mapping(uint256 => Crop) public crops;
+
+    event CropSubmitted(uint256 cropId, address farmer);
+    event DeliveryConfirmed(uint256 cropId, address buyer);
+    event PaymentReleased(uint256 cropId, address farmer, uint256 amount);
+
+    function submitCrop(
+        string memory _cropType,
+        uint256 _quantity,
+        string memory _location,
+        address _buyer,
+        uint256 _price
+    ) public {
+        crops[cropCount] = Crop({
+            cropType: _cropType,
+            quantity: _quantity,
+            location: _location,
+            farmer: msg.sender,
+            buyer: _buyer,
+            delivered: false,
+            price: _price
+        });
+
+        emit CropSubmitted(cropCount, msg.sender);
+        cropCount++;
+    }
+
+    function confirmDelivery(uint256 _cropId) public {
+        Crop storage crop = crops[_cropId];
+        require(msg.sender == crop.buyer, "Only buyer can confirm delivery");
+        require(!crop.delivered, "Already delivered");
+
+        crop.delivered = true;
+        payable(crop.farmer).transfer(crop.price);
+
+        emit DeliveryConfirmed(_cropId, msg.sender);
+        emit PaymentReleased(_cropId, crop.farmer, crop.price);
+    }
+
+    receive() external payable {}
+}
